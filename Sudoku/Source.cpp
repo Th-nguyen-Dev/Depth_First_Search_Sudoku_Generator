@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <chrono>
 #include <thread>
+#include <fstream>
 using namespace std;
 void sudokuPrint(vector<vector<int>>& sudokuBoard) {
 	for (int i = 0; i < 9; i++) {
@@ -75,27 +76,34 @@ void genNumFillY(int y, int x, vector<vector<int>>& sudokuBoard, vector<vector<u
 	}
 }
 
-void genNumFillX(int y, int x, vector<vector<int>>& sudokuBoard, vector<vector<unordered_set<int>>>& solStrg, bool& filled, int& iteration) {
+void genNumFillX(int y, int x, vector<vector<int>>& sudokuBoard, vector<vector<unordered_set<int>>>& solStrg, bool& filled, int& iteration,vector<vector<int>>& restriction) {
 
 	if (y <= 8) {
-			if (solStrg[y][x].empty()) {updateSolutionStrg(y, x, sudokuBoard, solStrg); }
-			unordered_set<int> solutions = getSolutions(y,x,solStrg) ;
-			for (int num : solutions) {
+			if (restriction[y][x] == 1) { 
+				if (x >= 8) { genNumFillX(y + 1, 0, sudokuBoard, solStrg, filled, iteration, restriction); }
+				else { genNumFillX(y, x + 1, sudokuBoard, solStrg, filled, iteration, restriction); }
+			}
+			else {
+				if (solStrg[y][x].empty()) { updateSolutionStrg(y, x, sudokuBoard, solStrg); }
+				unordered_set<int> solutions = getSolutions(y, x, solStrg);
+				for (int num : solutions) {
+					if (!filled) {
+						solStrg[y][x].insert(num);
+						sudokuBoard[y][x] = num;
+						//system("cls");
+						iteration++;
+						//sudokuPrint(sudokuBoard);
+						///*std::this_thread::sleep_for(std::chrono::milliseconds(100));*/
+						if (x >= 8) { genNumFillX(y + 1, 0, sudokuBoard, solStrg, filled, iteration, restriction); }
+						else { genNumFillX(y, x + 1, sudokuBoard, solStrg, filled, iteration, restriction); }
+					}
+				}
 				if (!filled) {
-					solStrg[y][x].insert(num);
-					sudokuBoard[y][x] = num;
-					//system("cls");
-					iteration++;
-					//sudokuPrint(sudokuBoard);
-					///*std::this_thread::sleep_for(std::chrono::milliseconds(100));*/
-					if (x >= 8) { genNumFillX(y + 1, 0, sudokuBoard, solStrg, filled,iteration); }
-					else { genNumFillX(y, x + 1, sudokuBoard, solStrg, filled, iteration); }
+					sudokuBoard[y][x] = 0;
+					solStrg[y][x].clear();
 				}
 			}
-			if (!filled) {
-				sudokuBoard[y][x] = 0;
-				solStrg[y][x].clear();
-			}
+
 	}
 	else {
 		filled = true;
@@ -135,13 +143,13 @@ void genNumFillXY(int y, int x, vector<vector<int>>& sudokuBoard, vector<vector<
 }
 
 
-void sudokuGen(vector<vector<int>>& sudokuBoard, vector<vector<unordered_set<int>>>& solStrg, int& iteration) {
+void sudokuGen(vector<vector<int>>& sudokuBoard, vector<vector<unordered_set<int>>>& solStrg, int& iteration,vector<vector<int>>& restriction) {
 
 	bool filled = false;
 	bool valid = false;
 	
 
-	genNumFillX(0, 0, sudokuBoard, solStrg, filled, iteration);
+	genNumFillX(0, 0, sudokuBoard, solStrg, filled, iteration,restriction);
 
 	for (int i = 0; i < 9; i++) {
 		for (int j = 0; j < 9; j++) {
@@ -156,19 +164,44 @@ void sudokuGen(vector<vector<int>>& sudokuBoard, vector<vector<unordered_set<int
 	}
 	if (valid) { cout << "Sudoku not valid" << endl; }
 }
-int main() {
+void readBoard(string filename, vector<vector<int>>& sudokuBoard, vector<vector<int>>& restriction) {
+	//Write an open file function to read the board
+	std::ifstream file(filename);
+	if (file.is_open()) {
+		for (int i = 0; i < 9; ++i) {
+			for (int j = 0; j < 9; ++j) {
+				file >> sudokuBoard[i][j];
+				if (sudokuBoard[i][j] != 0) { restriction[i][j] = 1; }
+			}
+		}
+		file.close();
+	}
+	else {
+		std::cout << "Unable to open file";
+	}
+
+}	
+int main(string arg) {
 	auto start = std::chrono::high_resolution_clock::now();
 	int iteration = 0;
 
 	srand(static_cast<unsigned int>(time(0)));
 	vector<vector<int>> sudokuBoard;
+	vector<vector<int>> restriction;
 	for (int i = 0; i < 9; i++) {
 		vector<int> sudokuRow;
 		sudokuBoard.push_back(sudokuRow);
+		restriction.push_back(sudokuRow);
 		for (int j = 0; j < 9; j++) {
 			sudokuBoard[i].push_back(0);
+			restriction[i].push_back(0);
 		}
 	}
+
+	readBoard("sudokuTest.txt", sudokuBoard, restriction);
+	sudokuPrint(sudokuBoard);
+	sudokuPrint(restriction); 
+
 	vector<vector<unordered_set<int>>> solStrg;
 	for (int i = 0; i < 9; i++) {
 		vector<unordered_set<int>> solRow;
@@ -179,7 +212,7 @@ int main() {
 		}
 	}
 
-	sudokuGen(sudokuBoard,solStrg,iteration);
+	sudokuGen(sudokuBoard,solStrg,iteration,restriction);
 	sudokuPrint(sudokuBoard);
 
 	auto end = std::chrono::high_resolution_clock::now();
